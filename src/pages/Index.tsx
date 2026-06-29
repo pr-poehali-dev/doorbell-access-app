@@ -4,34 +4,59 @@ import Icon from '@/components/ui/icon';
 const DEVICE_IP = '192.168.0.20';
 const OPEN_DURATION = 7;
 
+const DOOR_URL = `http://${DEVICE_IP}/api/passage`;
+const DOOR_LOGIN = '';
+const DOOR_PASSWORD = '';
+
 type DoorState = 'idle' | 'opening' | 'open';
 
 export default function Index() {
-  const [connected] = useState(true);
+  const [connected, setConnected] = useState(true);
   const [doorState, setDoorState] = useState<DoorState>('idle');
   const [countdown, setCountdown] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  const handleOpen = () => {
+  const sendPassageCommand = async () => {
+    const headers: Record<string, string> = {};
+    if (DOOR_LOGIN) {
+      headers['Authorization'] = 'Basic ' + btoa(`${DOOR_LOGIN}:${DOOR_PASSWORD}`);
+    }
+    const res = await fetch(DOOR_URL, { method: 'POST', headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  };
+
+  const startCountdown = () => {
+    setDoorState('open');
+    setCountdown(OPEN_DURATION);
+    timerRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setDoorState('idle');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleOpen = async () => {
     if (doorState !== 'idle') return;
+    setErrorMsg('');
     setDoorState('opening');
 
-    setTimeout(() => {
-      setDoorState('open');
-      setCountdown(OPEN_DURATION);
-      timerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setDoorState('idle');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }, 1200);
+    try {
+      await sendPassageCommand();
+      setConnected(true);
+      startCountdown();
+    } catch (e) {
+      setConnected(false);
+      setErrorMsg('Не удалось связаться с домофоном. Проверьте, что телефон в той же Wi-Fi сети.');
+      setDoorState('idle');
+    }
   };
 
   const isBusy = doorState !== 'idle';
@@ -70,7 +95,7 @@ export default function Index() {
 
           <button
             onClick={handleOpen}
-            disabled={isBusy || !connected}
+            disabled={isBusy}
             className={`relative w-52 h-52 rounded-full flex flex-col items-center justify-center gap-2 transition-all duration-500 active:scale-95 disabled:cursor-not-allowed
               ${doorState === 'open'
                 ? 'bg-emerald-500 text-white shadow-[0_0_60px_-10px] shadow-emerald-500/60'
@@ -102,10 +127,19 @@ export default function Index() {
           />
         </div>
 
-        <p className="text-sm text-muted-foreground text-center max-w-xs">
-          {doorState === 'idle' && 'Нажмите кнопку, чтобы открыть дверь'}
-          {doorState === 'opening' && 'Отправляю команду на домофон'}
-          {doorState === 'open' && `Дверь закроется через ${countdown} сек.`}
+        <p className="text-sm text-muted-foreground text-center max-w-xs min-h-[2.5rem]">
+          {errorMsg ? (
+            <span className="text-destructive flex items-center justify-center gap-1.5">
+              <Icon name="TriangleAlert" size={14} />
+              {errorMsg}
+            </span>
+          ) : (
+            <>
+              {doorState === 'idle' && 'Нажмите кнопку, чтобы открыть дверь'}
+              {doorState === 'opening' && 'Отправляю команду на домофон'}
+              {doorState === 'open' && `Дверь закроется через ${countdown} сек.`}
+            </>
+          )}
         </p>
       </main>
 
