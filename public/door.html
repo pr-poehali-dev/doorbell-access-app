@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>Домофон</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #1a1a1f;
+    --border: #2a2a32;
+    --text: #f0f0f4;
+    --muted: #6b6b7a;
+    --green: #34d399;
+    --green-glow: rgba(52,211,153,0.35);
+    --red: #f87171;
+    --red-soft: rgba(248,113,113,0.12);
+  }
+
+  body {
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 48px 24px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .glow-bg {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    transition: background 0.8s ease;
+  }
+  .glow-bg.open {
+    background: radial-gradient(circle, var(--green-glow) 0%, transparent 70%);
+  }
+
+  /* HEADER */
+  header {
+    width: 100%; max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 10;
+    animation: fadeIn 0.5s ease forwards;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon {
+    width: 40px; height: 40px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .brand-title { font-size: 14px; font-weight: 700; line-height: 1.2; }
+  .brand-sub { font-size: 11px; color: var(--muted); }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    background: rgba(52,211,153,0.08);
+    color: var(--green);
+    transition: all 0.3s;
+  }
+  .status-badge.offline { background: var(--red-soft); color: var(--red); }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  .status-badge.offline .status-dot { background: var(--red); animation: none; }
+
+  /* MAIN */
+  main {
+    display: flex; flex-direction: column; align-items: center; gap: 40px;
+    z-index: 10;
+  }
+
+  .btn-wrap {
+    position: relative;
+    width: 280px; height: 280px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(52,211,153,0.3);
+    opacity: 0;
+    animation: none;
+  }
+  .ring.active { animation: ringPulse 2s ease-out infinite; }
+  .ring.active.delay { animation-delay: 0.7s; }
+
+  .btn-glow {
+    position: absolute;
+    width: 210px; height: 210px;
+    border-radius: 50%;
+    background: rgba(99,102,241,0.15);
+    filter: blur(32px);
+    transition: background 0.7s ease;
+    animation: breathe 3.5s ease-in-out infinite;
+  }
+  .btn-glow.open { background: var(--green-glow); }
+
+  button#openBtn {
+    position: relative;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: none; cursor: pointer;
+    background: var(--text);
+    color: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    font-family: inherit;
+    font-size: 17px; font-weight: 700;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), background 0.4s, color 0.4s, box-shadow 0.4s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  button#openBtn:hover { transform: scale(1.03); }
+  button#openBtn:active { transform: scale(0.95); }
+  button#openBtn:disabled { cursor: not-allowed; }
+  button#openBtn.open {
+    background: var(--green);
+    color: #fff;
+    box-shadow: 0 0 60px -5px var(--green-glow);
+  }
+
+  .btn-icon { font-size: 48px; line-height: 1; }
+  .btn-label { font-size: 16px; font-weight: 700; }
+  .btn-countdown { font-size: 64px; font-weight: 800; line-height: 1; }
+  .btn-sub { font-size: 13px; font-weight: 500; opacity: 0.85; }
+
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(0,0,0,0.15);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  /* PROGRESS */
+  .progress-wrap {
+    width: 200px; height: 5px;
+    border-radius: 999px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%; border-radius: 999px;
+    background: rgba(240,240,244,0.3);
+    width: 100%;
+    transition: width 1s linear, background 0.4s;
+  }
+  .progress-bar.open { background: var(--green); }
+
+  .hint {
+    font-size: 13px; color: var(--muted);
+    text-align: center; max-width: 260px;
+    min-height: 36px;
+    line-height: 1.5;
+  }
+  .hint.error { color: var(--red); }
+
+  /* FOOTER */
+  footer {
+    width: 100%; max-width: 420px;
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted);
+    z-index: 10;
+  }
+
+  /* LOGIN SCREEN */
+  #loginScreen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 24px;
+    z-index: 100;
+    animation: fadeIn 0.4s ease;
+  }
+  #loginScreen.hidden { display: none; }
+
+  .login-box {
+    width: 100%; max-width: 360px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .login-head {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    margin-bottom: 40px;
+  }
+  .login-icon {
+    width: 56px; height: 56px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+  }
+  .login-title { font-size: 24px; font-weight: 800; }
+  .login-sub { font-size: 13px; color: var(--muted); text-align: center; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .field input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus { border-color: rgba(240,240,244,0.3); }
+
+  .login-error {
+    font-size: 12px; color: var(--red);
+    min-height: 20px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .login-btn {
+    width: 100%; padding: 15px;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: 14px;
+    font-family: inherit; font-size: 15px; font-weight: 700;
+    cursor: pointer; margin-top: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .login-btn:hover { opacity: 0.92; }
+  .login-btn:active { transform: scale(0.98); }
+  .login-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .login-note {
+    font-size: 12px; color: var(--muted);
+    text-align: center; margin-top: 24px;
+    line-height: 1.6;
+  }
+
+  /* KEYFRAMES */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+  @keyframes breathe {
+    0%,100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.08); opacity: 1; }
+  }
+  @keyframes ringPulse {
+    0%   { transform: scale(0.92); opacity: 0.6; }
+    100% { transform: scale(1.55); opacity: 0; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-head">
+      <div class="login-icon">🚪</div>
+      <div class="login-title">Домофон</div>
+      <div class="login-sub">Войдите, чтобы управлять дверью</div>
+    </div>
+    <div class="field">
+      <label>Логин</label>
+      <input id="loginInput" type="text" placeholder="admin" autocomplete="username" autocapitalize="none"/>
+    </div>
+    <div class="field">
+      <label>Пароль</label>
+      <input id="passInput" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <span id="loginBtnLabel">Войти</span>
+    </button>
+    <div class="login-note">Убедитесь, что телефон подключён<br>к той же Wi-Fi сети, что и домофон</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="glow-bg" id="glowBg"></div>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">🚪</div>
+    <div>
+      <div class="brand-title">Домофон</div>
+      <div class="brand-sub">Управление дверью</div>
+    </div>
+  </div>
+  <div class="status-badge" id="statusBadge">
+    <div class="status-dot"></div>
+    <span id="statusText">На связи</span>
+  </div>
+</header>
+
+<main>
+  <div class="btn-wrap">
+    <div class="ring" id="ring1"></div>
+    <div class="ring delay" id="ring2"></div>
+    <div class="btn-glow" id="btnGlow"></div>
+    <button id="openBtn" onclick="handleOpen()">
+      <div id="btnContent">
+        <div class="btn-icon">☝️</div>
+        <div class="btn-label">Открыть</div>
+      </div>
+    </button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="hint" id="hint">Нажмите кнопку, чтобы открыть дверь</div>
+</main>
+
+<footer>
+  <span>📶 192.168.0.20</span>
+  <span>Wirenboard</span>
+</footer>
+
+<script>
+  const DEVICE_IP = '192.168.0.20';
+  const BASE = `http://${DEVICE_IP}`;
+  const OPEN_DURATION = 7;
+
+  let doorState = 'idle';
+  let countdownTimer = null;
+  let savedLogin = localStorage.getItem('wb_login') || '';
+  let savedPass  = localStorage.getItem('wb_pass')  || '';
+
+  // Pre-fill login form
+  document.getElementById('loginInput').value = savedLogin;
+  document.getElementById('passInput').value  = savedPass;
+
+  // If credentials saved — try auto-login
+  if (savedLogin && savedPass) {
+    doLogin(true);
+  }
+
+  async function doLogin(silent = false) {
+    const login = document.getElementById('loginInput').value.trim();
+    const pass  = document.getElementById('passInput').value;
+    const btn   = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+
+    if (!login) return;
+    errEl.textContent = '';
+    btn.disabled = true;
+    document.getElementById('loginBtnLabel').textContent = 'Вхожу…';
+
+    try {
+      const body = new URLSearchParams({ login, password: pass });
+      const res = await fetch(`${BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(res.status);
+
+      localStorage.setItem('wb_login', login);
+      localStorage.setItem('wb_pass', pass);
+      document.getElementById('loginScreen').classList.add('hidden');
+      setConnected(true);
+    } catch(e) {
+      if (!silent) {
+        errEl.textContent = '⚠️ Неверный логин/пароль или домофон недоступен';
+      } else {
+        // silent fail — show login screen
+      }
+    } finally {
+      btn.disabled = false;
+      document.getElementById('loginBtnLabel').textContent = 'Войти';
+    }
+  }
+
+  // Enter key in login form
+  document.getElementById('passInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('passInput').focus();
+  });
+
+  async function sendPassage() {
+    const res = await fetch(`${BASE}/server/run_passage.lua`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idx: '1' }),
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(res.status);
+  }
+
+  async function handleOpen() {
+    if (doorState !== 'idle') return;
+    setHint('');
+    setState('opening');
+
+    try {
+      await sendPassage();
+      setConnected(true);
+      startCountdown();
+    } catch(e) {
+      // Session expired — re-login and retry
+      try {
+        const login = localStorage.getItem('wb_login') || '';
+        const pass  = localStorage.getItem('wb_pass')  || '';
+        const body = new URLSearchParams({ login, password: pass });
+        await fetch(`${BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+          credentials: 'include',
+        });
+        await sendPassage();
+        setConnected(true);
+        startCountdown();
+      } catch(e2) {
+        setConnected(false);
+        setState('idle');
+        setHint('⚠️ Не удалось связаться с домофоном. Убедитесь, что телефон в той же Wi-Fi сети.', true);
+      }
+    }
+  }
+
+  function startCountdown() {
+    setState('open');
+    let count = OPEN_DURATION;
+    updateCountdown(count);
+    countdownTimer = setInterval(() => {
+      count--;
+      updateCountdown(count);
+      if (count <= 0) {
+        clearInterval(countdownTimer);
+        setState('idle');
+      }
+    }, 1000);
+    // Vibrate on open
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  }
+
+  function updateCountdown(n) {
+    document.getElementById('progressBar').style.width = (n / OPEN_DURATION * 100) + '%';
+    if (doorState === 'open') {
+      setHint(`Дверь закроется через ${n} сек.`);
+      document.getElementById('btnContent').innerHTML =
+        `<div class="btn-countdown">${n}</div><div class="btn-sub">Дверь открыта</div>`;
+    }
+  }
+
+  function setState(s) {
+    doorState = s;
+    const btn     = document.getElementById('openBtn');
+    const glow    = document.getElementById('btnGlow');
+    const bgGlow  = document.getElementById('glowBg');
+    const r1      = document.getElementById('ring1');
+    const r2      = document.getElementById('ring2');
+    const bar     = document.getElementById('progressBar');
+
+    btn.disabled = s !== 'idle';
+
+    if (s === 'opening') {
+      document.getElementById('btnContent').innerHTML =
+        `<div class="spinner"></div><div class="btn-label" style="margin-top:8px">Открываю…</div>`;
+      btn.classList.remove('open');
+      glow.classList.remove('open');
+      bgGlow.classList.remove('open');
+      r1.classList.remove('active'); r2.classList.remove('active');
+      bar.classList.remove('open');
+      bar.style.width = '100%';
+    } else if (s === 'open') {
+      btn.classList.add('open');
+      glow.classList.add('open');
+      bgGlow.classList.add('open');
+      r1.classList.add('active'); r2.classList.add('active');
+      bar.classList.add('open');
+      bar.style.width = '100%';
+    } else {
+      btn.classList.remove('open');
+      glow.classList.remove('open');
+      bgGlow.classList.remove('open');
+      r1.classList.remove('active'); r2.classList.remove('active');
+      bar.classList.remove('open');
+      bar.style.width = '100%';
+      document.getElementById('btnContent').innerHTML =
+        `<div class="btn-icon">☝️</div><div class="btn-label">Открыть</div>`;
+      setHint('Нажмите кнопку, чтобы открыть дверь');
+    }
+  }
+
+  function setConnected(ok) {
+    const badge = document.getElementById('statusBadge');
+    const text  = document.getElementById('statusText');
+    badge.className = 'status-badge' + (ok ? '' : ' offline');
+    text.textContent = ok ? 'На связи' : 'Нет связи';
+  }
+
+  function setHint(msg, isError = false) {
+    const el = document.getElementById('hint');
+    el.textContent = msg;
+    el.className = 'hint' + (isError ? ' error' : '');
+  }
+</script>
+</body>
+</html>
