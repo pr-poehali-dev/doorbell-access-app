@@ -4,6 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <title>Домофон</title>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Домофон"/>
+<meta name="theme-color" content="#0d0d0f"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230d0d0f'/%3E%3Ctext x='256' y='330' font-size='260' text-anchor='middle'%3E🚪%3C/text%3E%3C/svg%3E"/>
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22%D0%94%D0%BE%D0%BC%D0%BE%D1%84%D0%BE%D0%BD%22%2C%22short_name%22%3A%22%D0%94%D0%BE%D0%BC%D0%BE%D1%84%D0%BE%D0%BD%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230d0d0f%22%2C%22theme_color%22%3A%22%230d0d0f%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%2520viewBox%3D'0%25200%2520512%2520512'%253E%253Crect%2520width%3D'512'%2520height%3D'512'%2520rx%3D'112'%2520fill%3D'%25230d0d0f'%2F%253E%253Ctext%2520x%3D'256'%2520y%3D'330'%2520font-size%3D'260'%2520text-anchor%3D'middle'%253E%F0%9F%9A%AA%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -254,6 +261,28 @@
     line-height: 1.6;
   }
 
+  /* PWA BANNER */
+  #pwaBanner {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; max-width: 320px; width: calc(100% - 48px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 200;
+    animation: fadeIn 0.4s ease;
+  }
+  #pwaBanner.hidden { display: none; }
+  .pwa-icon { font-size: 28px; flex-shrink: 0; }
+  .pwa-text { flex: 1; line-height: 1.4; }
+  .pwa-text b { display: block; margin-bottom: 2px; }
+  .pwa-text span { color: var(--muted); font-size: 12px; }
+  .pwa-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0;
+    line-height: 1;
+  }
+
   /* KEYFRAMES */
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -299,6 +328,16 @@
     </button>
     <div class="login-note">Убедитесь, что телефон подключён<br>к той же Wi-Fi сети, что и домофон</div>
   </div>
+</div>
+
+<!-- PWA INSTALL BANNER -->
+<div id="pwaBanner" class="hidden">
+  <div class="pwa-icon">🚪</div>
+  <div class="pwa-text">
+    <b>Добавить на экран</b>
+    <span id="pwaHint"></span>
+  </div>
+  <button class="pwa-close" onclick="closePwaBanner()">✕</button>
 </div>
 
 <!-- MAIN APP -->
@@ -526,6 +565,35 @@
     el.textContent = msg;
     el.className = 'hint' + (isError ? ' error' : '');
   }
+
+  // PWA install banner
+  function closePwaBanner() {
+    document.getElementById('pwaBanner').classList.add('hidden');
+    localStorage.setItem('pwa_dismissed', '1');
+  }
+
+  function showPwaBanner() {
+    if (localStorage.getItem('pwa_dismissed')) return;
+    if (window.navigator.standalone) return; // already installed (iOS)
+    if (window.matchMedia('(display-mode: standalone)').matches) return; // already installed (Android)
+
+    const banner = document.getElementById('pwaBanner');
+    const hint   = document.getElementById('pwaHint');
+    const isIos  = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+
+    if (isIos) {
+      hint.textContent = 'Нажмите Поделиться → «На экран Домой»';
+    } else if (isAndroid) {
+      hint.textContent = 'Нажмите меню ⋮ → «Добавить на главный экран»';
+    } else {
+      return;
+    }
+
+    setTimeout(() => banner.classList.remove('hidden'), 2000);
+  }
+
+  showPwaBanner();
 </script>
 </body>
 </html>
