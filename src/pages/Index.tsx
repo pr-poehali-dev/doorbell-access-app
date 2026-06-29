@@ -19,11 +19,10 @@ async function wirenboardLogin(login: string, password: string): Promise<void> {
 }
 
 async function wirenboardPassage(): Promise<void> {
-  const body = new URLSearchParams({ id: '1' });
   const res = await fetch(`${BASE}/server/run_passage.lua`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idx: '1' }),
     credentials: 'include',
   });
   if (!res.ok) throw new Error(`passage ${res.status}`);
